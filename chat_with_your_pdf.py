@@ -1,13 +1,16 @@
 import os
 import streamlit as st
-from langchain.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEndpointEmbeddings 
+import shutil
+# from langchain.document_loaders import PyPDFLoader
+# from langchain.vectorstores import Chroma
 from langchain.chains import RetrievalQA
-from langchain.vectorstores import Chroma
-from langchain.chat_models import ChatOpenAI
-
+from langchain_community.chat_models import ChatOpenAI
+from langchain_huggingface import HuggingFaceEndpointEmbeddings 
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import Chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv, find_dotenv
+
 load_dotenv(find_dotenv())
 
 # embeddings
@@ -16,25 +19,34 @@ embedding_function = HuggingFaceEndpointEmbeddings(
     huggingfacehub_api_token=os.getenv("HUGGINGFACE_API_KEY")
     )
 
-# db
+# Cleanup the existing Chroma DB if it exists
 persistent_db_path = "db_pdf_chatbot"
-# if os.path.exists(persistent_db_path):
-#     os.remove(persistent_db_path)
+if os.path.exists(persistent_db_path):
+    try:
+        # Attempt to close the Chroma instance if it exists
+        db = Chroma(persist_directory=persistent_db_path, embedding_function=embedding_function)
+        db._client.close()
+    except Exception as e:
+        print(f"Warnung: Konnte Chroma-Instanz nicht schließen: {e}")
+    finally:
+        shutil.rmtree(persistent_db_path)
+
+# Reinitialize the Chroma DB
 db = Chroma(persist_directory=persistent_db_path, embedding_function=embedding_function)
 
-# Get the current working directory
+# Get the current working directoryrrent working directory
 file_path = os.path.abspath(__file__)
 current_dir = os.path.dirname(file_path)
 
 # System-Prompt definieren # TODO
 system_prompt = """
-Du bist ein KI-gestützter Assistent, der Informationen aus einem hochgeladenen PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. 
-Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.
+Du bist ein KI-gestützter Assistent, der Informationen aus einem hochgeladenen PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. 
+Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.
 """
 # Chat laden
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.5)
 
-# Streamlit App starten
+# Streamlit App starten# Streamlit App starten
 st.title("📄 Interaktiver PDF-Chatbot")
 
 uploaded_file = st.file_uploader("Lade deine PDF-Datei hier hoch:", type="pdf")
@@ -44,22 +56,22 @@ chunk_overlap=200
 
 if uploaded_file is not None:
 
-    # PDF hochladen und Daten aus PDF lesen
+    # PDF hochladen und Daten aus PDF lesenesen
     st.info("Lese Daten aus PDF ...", icon="📝")
     with open("temp_file.pdf", "wb") as temp_pdf:
         temp_pdf.write(uploaded_file.read())
     pdf_loader = PyPDFLoader("temp_file.pdf")
     docs = pdf_loader.load()
-    total_length = sum(len(doc.page_content) for doc in docs)
+    total_length = sum(len(doc.page_content) for doc in docs)(len(doc.page_content) for doc in docs)
     chunk_size = min(1000, total_length // 100)
     if chunk_overlap > chunk_size:
-        chunk_overlap = chunk_size / 10
-    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, 
+        chunk_overlap = chunk_size / 10        
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size,
                                               chunk_overlap=chunk_overlap,
                                               separators=["\n\n", "\n"," ", ".", ","])
     chunks = splitter.split_documents(docs)
 
-    # Write data to db
+    # Write data to db to db
     st.info("Daten mit Sprachmodell verarbeiten ...", icon="ℹ️")
     db.add_documents(chunks)
 
