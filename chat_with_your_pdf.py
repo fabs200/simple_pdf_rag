@@ -7,7 +7,7 @@ from langchain.chains import RetrievalQA
 from langchain_community.chat_models import ChatOpenAI
 from langchain_huggingface import HuggingFaceEndpointEmbeddings 
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv, find_dotenv
 
@@ -19,20 +19,11 @@ embedding_function = HuggingFaceEndpointEmbeddings(
     huggingfacehub_api_token=os.getenv("HUGGINGFACE_API_KEY")
     )
 
-# Cleanup the existing Chroma DB if it exists
+# Initialize chromadb, delete ids from db from previous run
 persistent_db_path = "db_pdf_chatbot"
-if os.path.exists(persistent_db_path):
-    try:
-        # Attempt to close the Chroma instance if it exists
-        db = Chroma(persist_directory=persistent_db_path, embedding_function=embedding_function)
-        db._client.close()
-    except Exception as e:
-        print(f"Warnung: Konnte Chroma-Instanz nicht schließen: {e}")
-    finally:
-        shutil.rmtree(persistent_db_path)
-
-# Reinitialize the Chroma DB
 db = Chroma(persist_directory=persistent_db_path, embedding_function=embedding_function)
+if db.get()["ids"]:
+    db.delete(ids=db.get()["ids"])
 
 # Get the current working directoryrrent working directory
 file_path = os.path.abspath(__file__)
@@ -62,7 +53,7 @@ if uploaded_file is not None:
         temp_pdf.write(uploaded_file.read())
     pdf_loader = PyPDFLoader("temp_file.pdf")
     docs = pdf_loader.load()
-    total_length = sum(len(doc.page_content) for doc in docs)(len(doc.page_content) for doc in docs)
+    total_length = sum(len(doc.page_content) for doc in docs)
     chunk_size = min(1000, total_length // 100)
     if chunk_overlap > chunk_size:
         chunk_overlap = chunk_size / 10        
