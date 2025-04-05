@@ -17,8 +17,8 @@ load_dotenv(find_dotenv())
 # Streamlit App
 st.set_page_config(page_title="PDF-Chatbot", page_icon=":robot_face:", layout="wide")
 
-# Temperaturwerte vorbereiten (0.0 bis 1.0 in 0.1er-Schritten)
-temperature_options = [round(i * 0.1, 1) for i in range(11)]  # [0.0, 0.1, ..., 1.0]
+# Initialize temperature for llm
+temperature_options = [round(i * 0.1, 1) for i in range(11)]
 
 # Initialize Flag indicating Chatbot is ready
 chatbot_ready = False
