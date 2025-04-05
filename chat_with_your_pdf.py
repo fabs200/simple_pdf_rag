@@ -1,8 +1,5 @@
 import os
 import streamlit as st
-import shutil
-# from langchain.document_loaders import PyPDFLoader
-# from langchain.vectorstores import Chroma
 from langchain.chains import RetrievalQA
 from langchain_community.chat_models import ChatOpenAI
 from langchain_huggingface import HuggingFaceEndpointEmbeddings 
