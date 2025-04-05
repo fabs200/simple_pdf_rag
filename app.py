@@ -1,11 +1,12 @@
 import os
 import streamlit as st
-from langchain.chains import RetrievalQA
 from langchain_community.chat_models import ChatOpenAI
 from langchain_huggingface import HuggingFaceEndpointEmbeddings 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain.chains import RetrievalQA
 from dotenv import load_dotenv, find_dotenv
 
 import logging
@@ -34,7 +35,7 @@ file_path = os.path.abspath(__file__)
 current_dir = os.path.dirname(file_path)
 logging.info(f"Current Directory: {current_dir}")
 
-# Set up the system prompt for LLM TODO
+# Define Prompt-Template
 system_prompt = """
 Du bist ein KI-gestützter Assistent, der Informationen aus einem hochgeladenen PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. 
 Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.
@@ -43,6 +44,9 @@ Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen 
 # Initialize LLM
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.5)
 logging.info(f"LLM: {llm}")
+
+# Initialize Flag indicating Chatbot is ready
+chatbot_ready = False
 
 # Streamlit App
 st.set_page_config(page_title="PDF-Chatbot", page_icon=":robot_face:", layout="wide")
@@ -78,20 +82,27 @@ if uploaded_file is not None:
                                               chunk_overlap=chunk_overlap,
                                               separators=["\n\n", "\n"," ", ".", ","])
     chunks = splitter.split_documents(docs)
-
     # Write data to db to db
-    st.info("Daten mit Sprachmodell verarbeiten ...", icon="ℹ️")
     db.add_documents(chunks)
+    st.info("Text aus PDF erfolgreich gelesen", icon="📖")
 
-# Retrieval-QA erstellen mit System-Prompt
+# Define Prompt template
+system_message_prompt = SystemMessagePromptTemplate.from_template(system_prompt)
+human_message_prompt = HumanMessagePromptTemplate.from_template(
+    "Kontext:\n{context}\n\nFrage:\n{question}"
+)
+chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt, human_message_prompt])
+logging.info("Prompt-Template erstellt")
+
+# LLMChain mit dem custom Prompt
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
     chain_type="stuff",
+    chain_type_kwargs={"prompt": chat_prompt},
     retriever=db.as_retriever(search_kwargs={"k": 2}),
     verbose=True
 )
 logging.info("Retrieval-QA erstellt")
-# qa_chain.combine_documents_chain.llm_chain.prompt.messages.insert(0, {"role": "system", "content": system_prompt}) # TODO
 
 query = st.text_input("Stelle eine Frage an die PDF:")
 logging.info(f"User query: {query}")
@@ -100,13 +111,17 @@ if uploaded_file is None:
     st.warning("Bitte PDF hochladen.")
     logging.warning("No PDF uploaded.")
 
-if query is None:
+if not query:
     st.success("Der Chatbot ist bereit! Stelle jetzt deine Fragen.", icon="✨")
     logging.info("Chatbot is ready for questions.")
 else:
-    logging.info(f"User query: {query}")
-    response = qa_chain.run(query)
-    logging.info(f"Response: {response}")
-    st.write("### Antwort:")
-    st.write(response)
-    logging.info("Response displayed")
+    try:
+        response = qa_chain.run(query)
+        logging.info(f"Response: {response}")
+        st.write("### Antwort:")
+        st.write(response)
+        logging.info("Response displayed")
+    except Exception as e:
+        logging.error(f"Error processing query: {e}")
+        st.error("Es gab ein Problem bei der Verarbeitung deiner Anfrage. Bitte versuche es erneut.")
+        st.write(response)
