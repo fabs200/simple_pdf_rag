@@ -34,38 +34,33 @@ file_path = os.path.abspath(__file__)
 current_dir = os.path.dirname(file_path)
 logging.info(f"Current Directory: {current_dir}")
 
-# System-Prompt definieren # TODO
+# Specify System-Prompt # TODO
 system_prompt = """
 Du bist ein KI-gestützter Assistent, der Informationen aus einem hochgeladenen PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. 
 Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.
 """
-# Chat laden
+# Load chat
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.5)
 logging.info(f"LLM: {llm}")
 
-# Streamlit App starten# Streamlit App starten
+# Set up Streamlit app
 st.title("📄 Interaktiver PDF-Chatbot")
 logging.info("Streamlit App gestartet")
 
+# Upload PDF-Datei
 uploaded_file = st.file_uploader("Lade deine PDF-Datei hier hoch:", type="pdf")
-logging.info("Datei-Upload gestartet")
+logging.info(f"Uploaded files: {uploaded_file}")
 
-# Specify params
-chunk_overlap=200
+# Read the uploaded file as bytes
+uploaded_file_bytes_data = uploaded_file.read()
+st.write("filename:", uploaded_file.name)
+st.write(uploaded_file_bytes_data)
+logging.info(f"Uploaded file: {uploaded_file.name}, bytes_data: {uploaded_file_bytes_data}, length: {len(uploaded_file_bytes_data)}")
 
-uploaded_files = st.file_uploader(
-    "Choose a CSV file", accept_multiple_files=True
-)
-logging.info(f"Uploaded files: {uploaded_files}")
-for uploaded_file in uploaded_files:
-    bytes_data = uploaded_file.read()
-    st.write("filename:", uploaded_file.name)
-    st.write(bytes_data)
-    logging.info(f"Uploaded file: {uploaded_file.name}")
+# Check if a file is uploaded
 if uploaded_file is not None:
-    logging.info(f"Uploaded file: {uploaded_file.name}")
     # Save the uploaded file to a temp file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+    with uploaded_file.name(delete=False, suffix=".pdf") as tmp_file:
         tmp_file.write(uploaded_file.read())
         tmp_path = tmp_file.name
 
@@ -77,6 +72,8 @@ if uploaded_file is not None:
     docs = pdf_loader.load()
     total_length = sum(len(doc.page_content) for doc in docs)
     chunk_size = min(1000, total_length // 100)
+    # Specify params
+    chunk_overlap=200
     if chunk_overlap > chunk_size:
         chunk_overlap = chunk_size / 10        
     splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size,
