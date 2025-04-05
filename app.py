@@ -20,7 +20,7 @@ embedding_function = HuggingFaceEndpointEmbeddings(
     )
 logging.info(f"Embedding function: {embedding_function}")
 
-# Initialize chromadb, delete ids from db from previous run
+# Initialize chroma db, delete ids from db from previous run
 persistent_db_path = "db_pdf_chatbot"
 logging.info(f"Persistent DB Path: {persistent_db_path}")
 db = Chroma(persist_directory=persistent_db_path, embedding_function=embedding_function)
@@ -29,47 +29,51 @@ if db.get()["ids"]:
     db.delete(ids=db.get()["ids"])
     logging.info("Deleted ids from db.")
 
-# Get the current working directoryrrent working directory
+# Get the current working directory and file path
 file_path = os.path.abspath(__file__)
 current_dir = os.path.dirname(file_path)
 logging.info(f"Current Directory: {current_dir}")
 
-# System-Prompt definieren # TODO
+# Set up the system prompt for LLM TODO
 system_prompt = """
 Du bist ein KI-gestützter Assistent, der Informationen aus einem hochgeladenen PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. 
 Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.
 """
-# Chat laden
+
+# Initialize LLM
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.5)
 logging.info(f"LLM: {llm}")
 
-# Streamlit App starten# Streamlit App starten
+# Streamlit App
+st.set_page_config(page_title="PDF-Chatbot", page_icon=":robot_face:", layout="wide")
 st.title("📄 Interaktiver PDF-Chatbot")
 logging.info("Streamlit App gestartet")
 
+# Upload PDF file
 uploaded_file = st.file_uploader("Lade deine PDF-Datei hier hoch:", type="pdf")
 logging.info(f"Uploaded files: {uploaded_file}")
 
-# Read the uploaded file as bytes
+# Check if a file is uploaded
 if uploaded_file is not None:
-    # Read the file as bytes
-    uploaded_file_bytes_data = uploaded_file.read()
-    st.write("filename:", uploaded_file.name)
-    st.write(uploaded_file_bytes_data)
-    logging.info(f"Uploaded file: {uploaded_file.name}, bytes_data: {uploaded_file_bytes_data}, length: {len(uploaded_file_bytes_data)}")
+    # Create temp folder and save uploaded pdf in it
+    temp_dir = "tmp"
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file_path = os.path.join(temp_dir, uploaded_file.name)
+    with open(temp_file_path, "wb") as f:
+        f.write(uploaded_file.read())
+    st.success(f"PDF erfolgreich hochgeladen")
+    logging.info(f"PDF gespeichert unter: {temp_file_path}")
 
     # Now use the path with PyPDFLoader
-    pdf_loader = PyPDFLoader(uploaded_file_bytes_data)
-    documents = pdf_loader.load()
-
-    pdf_loader = PyPDFLoader(uploaded_file)
+    pdf_loader = PyPDFLoader(temp_file_path)
     docs = pdf_loader.load()
     total_length = sum(len(doc.page_content) for doc in docs)
     chunk_size = min(1000, total_length // 100)
-    # Specify params
+
+    # Split documents into chunks
     chunk_overlap=200
     if chunk_overlap > chunk_size:
-        chunk_overlap = chunk_size / 10        
+        chunk_overlap = chunk_size / 10
     splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size,
                                               chunk_overlap=chunk_overlap,
                                               separators=["\n\n", "\n"," ", ".", ","])
