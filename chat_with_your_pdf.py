@@ -34,20 +34,19 @@ file_path = os.path.abspath(__file__)
 current_dir = os.path.dirname(file_path)
 logging.info(f"Current Directory: {current_dir}")
 
-# Specify System-Prompt # TODO
+# System-Prompt definieren # TODO
 system_prompt = """
 Du bist ein KI-gestützter Assistent, der Informationen aus einem hochgeladenen PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. 
 Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.
 """
-# Load chat
+# Chat laden
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.5)
 logging.info(f"LLM: {llm}")
 
-# Set up Streamlit app
+# Streamlit App starten# Streamlit App starten
 st.title("📄 Interaktiver PDF-Chatbot")
 logging.info("Streamlit App gestartet")
 
-# Upload PDF-Datei
 uploaded_file = st.file_uploader("Lade deine PDF-Datei hier hoch:", type="pdf")
 logging.info(f"Uploaded files: {uploaded_file}")
 
