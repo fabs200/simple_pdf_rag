@@ -11,6 +11,9 @@ from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv, find_dotenv
 
+import logging
+logging.basicConfig(filename='app.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 load_dotenv(find_dotenv())
 
 # embeddings
@@ -45,13 +48,29 @@ uploaded_file = st.file_uploader("Lade deine PDF-Datei hier hoch:", type="pdf")
 # Specify params
 chunk_overlap=200
 
+uploaded_files = st.file_uploader(
+    "Choose a CSV file", accept_multiple_files=True
+)
+for uploaded_file in uploaded_files:
+    bytes_data = uploaded_file.read()
+    st.write("filename:", uploaded_file.name)
+    st.write(bytes_data)
 if uploaded_file is not None:
+    # Save the uploaded file to a temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        tmp_path = tmp_file.name
 
-    # PDF hochladen und Daten aus PDF lesenesen
-    st.info("Lese Daten aus PDF ...", icon="📝")
-    with open("temp_file.pdf", "wb") as temp_pdf:
-        temp_pdf.write(uploaded_file.read())
-    pdf_loader = PyPDFLoader("temp_file.pdf")
+    # Now use the path with PyPDFLoader
+    pdf_loader = PyPDFLoader(tmp_path)
+    documents = pdf_loader.load()
+    # if uploaded_file:
+
+    #     # PDF hochladen und Daten aus PDF lesenesen
+    #     st.info("Lese Daten aus PDF ...", icon="📝")
+    #     with open(uploaded_file, "wb") as temp_pdf:
+    #         temp_pdf.write(uploaded_file.read())
+    pdf_loader = PyPDFLoader(uploaded_file)
     docs = pdf_loader.load()
     total_length = sum(len(doc.page_content) for doc in docs)
     chunk_size = min(1000, total_length // 100)
