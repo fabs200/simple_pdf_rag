@@ -9,3 +9,6 @@ code/
 *.db
 *.bin
 *.pickle
+*.log
+*.csv
+*.json
