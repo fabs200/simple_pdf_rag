@@ -18,16 +18,21 @@ embedding_function = HuggingFaceEndpointEmbeddings(
     model="sentence-transformers/all-MiniLM-L6-v2",
     huggingfacehub_api_token=os.getenv("HUGGINGFACE_API_KEY")
     )
+logging.info(f"Embedding function: {embedding_function}")
 
 # Initialize chromadb, delete ids from db from previous run
 persistent_db_path = "db_pdf_chatbot"
+logging.info(f"Persistent DB Path: {persistent_db_path}")
 db = Chroma(persist_directory=persistent_db_path, embedding_function=embedding_function)
 if db.get()["ids"]:
+    logging.info(f"Deleting ids from db: {db.get()['ids']}")
     db.delete(ids=db.get()["ids"])
+    logging.info("Deleted ids from db.")
 
 # Get the current working directoryrrent working directory
 file_path = os.path.abspath(__file__)
 current_dir = os.path.dirname(file_path)
+logging.info(f"Current Directory: {current_dir}")
 
 # System-Prompt definieren # TODO
 system_prompt = """
@@ -36,11 +41,14 @@ Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen 
 """
 # Chat laden
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.5)
+logging.info(f"LLM: {llm}")
 
 # Streamlit App starten# Streamlit App starten
 st.title("📄 Interaktiver PDF-Chatbot")
+logging.info("Streamlit App gestartet")
 
 uploaded_file = st.file_uploader("Lade deine PDF-Datei hier hoch:", type="pdf")
+logging.info("Datei-Upload gestartet")
 
 # Specify params
 chunk_overlap=200
@@ -48,11 +56,14 @@ chunk_overlap=200
 uploaded_files = st.file_uploader(
     "Choose a CSV file", accept_multiple_files=True
 )
+logging.info(f"Uploaded files: {uploaded_files}")
 for uploaded_file in uploaded_files:
     bytes_data = uploaded_file.read()
     st.write("filename:", uploaded_file.name)
     st.write(bytes_data)
+    logging.info(f"Uploaded file: {uploaded_file.name}")
 if uploaded_file is not None:
+    logging.info(f"Uploaded file: {uploaded_file.name}")
     # Save the uploaded file to a temp file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
         tmp_file.write(uploaded_file.read())
@@ -61,12 +72,7 @@ if uploaded_file is not None:
     # Now use the path with PyPDFLoader
     pdf_loader = PyPDFLoader(tmp_path)
     documents = pdf_loader.load()
-    # if uploaded_file:
 
-    #     # PDF hochladen und Daten aus PDF lesenesen
-    #     st.info("Lese Daten aus PDF ...", icon="📝")
-    #     with open(uploaded_file, "wb") as temp_pdf:
-    #         temp_pdf.write(uploaded_file.read())
     pdf_loader = PyPDFLoader(uploaded_file)
     docs = pdf_loader.load()
     total_length = sum(len(doc.page_content) for doc in docs)
@@ -89,16 +95,23 @@ qa_chain = RetrievalQA.from_chain_type(
     retriever=db.as_retriever(search_kwargs={"k": 2}),
     verbose=True
 )
+logging.info("Retrieval-QA erstellt")
 # qa_chain.combine_documents_chain.llm_chain.prompt.messages.insert(0, {"role": "system", "content": system_prompt}) # TODO
 
 query = st.text_input("Stelle eine Frage an die PDF:")
+logging.info(f"User query: {query}")
 response = None
 if uploaded_file is None:
     st.warning("Bitte PDF hochladen.")
+    logging.warning("No PDF uploaded.")
 
 if query is None:
     st.success("Der Chatbot ist bereit! Stelle jetzt deine Fragen.", icon="✨")
+    logging.info("Chatbot is ready for questions.")
 else:
+    logging.info(f"User query: {query}")
     response = qa_chain.run(query)
+    logging.info(f"Response: {response}")
     st.write("### Antwort:")
     st.write(response)
+    logging.info("Response displayed")
