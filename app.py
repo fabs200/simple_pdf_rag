@@ -14,6 +14,15 @@ logging.basicConfig(filename='app.log', level=logging.DEBUG, format='%(asctime)s
 
 load_dotenv(find_dotenv())
 
+# Streamlit App
+st.set_page_config(page_title="PDF-Chatbot", page_icon=":robot_face:", layout="wide")
+
+# Temperaturwerte vorbereiten (0.0 bis 1.0 in 0.1er-Schritten)
+temperature_options = [round(i * 0.1, 1) for i in range(11)]  # [0.0, 0.1, ..., 1.0]
+
+# Initialize Flag indicating Chatbot is ready
+chatbot_ready = False
+
 # embeddings
 embedding_function = HuggingFaceEndpointEmbeddings(
     model="sentence-transformers/all-MiniLM-L6-v2",
@@ -37,21 +46,40 @@ logging.info(f"Current Directory: {current_dir}")
 
 # Define Prompt-Template
 system_prompt = """
-Du bist ein KI-gestützter Assistent, der Informationen aus einem hochgeladenen PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. PDF-Dokument extrahiert und präzise Antworten auf Fragen liefert. 
-Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.Gib nur Inhalte zurück, die direkt im Dokument stehen, und füge keine eigenen Informationen hinzu. Falls die Frage nicht durch das Dokument beantwortet werden kann, antworte entsprechend.
+Du bist ein hilfreicher, KI-gestützter Assistent. 
+Dir wird ein PDF-Dokument zur Verfügung gestellt, das vom Nutzer hochgeladen wurde.
+Deine Aufgabe ist es, ausschließlich auf Basis der Informationen aus diesem Dokument präzise und verständliche Antworten auf Fragen zu geben.
+Wenn eine Information nicht eindeutig im Dokument vorhanden ist, gib keine Vermutungen ab. 
+Antworte stattdessen höflich, dass diese Information nicht im Dokument enthalten ist.
+Wenn du Tabellen, Listen oder Daten findest, gib diese möglichst klar strukturiert zurück.
+Füge keine eigenen Interpretationen hinzu, verwende keine externen Quellen und spekuliere nicht.
+Sprich den Nutzer direkt an und versuche, komplexe Inhalte verständlich zusammenzufassen.
+Sprich sachlich, klar und auf der Sprache, auf der dir Fragen gestellt werden, in der Regel Deutsch.
 """
 
-# Initialize LLM
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.5)
-logging.info(f"LLM: {llm}")
-
-# Initialize Flag indicating Chatbot is ready
-chatbot_ready = False
-
-# Streamlit App
-st.set_page_config(page_title="PDF-Chatbot", page_icon=":robot_face:", layout="wide")
+# Title
 st.title("📄 Interaktiver PDF-Chatbot")
 logging.info("Streamlit App gestartet")
+
+# Set Slider for model temperature
+model_temperature = st.select_slider(
+    "Temperatur des Sprachmodells",
+    options=temperature_options,
+    value=0.5,
+    format_func=lambda x: f"{x:.1f}",
+    key="chat_model_temperature",
+    help="Temperatur des Sprachmodells",
+    label_visibility="collapsed",
+)
+st.write("Temperatur des Sprachmodells:", model_temperature)
+logging.info(f"LLM model temperature: {model_temperature}")
+
+# Initialize LLM
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", 
+                 temperature=model_temperature,
+                # openai_api_key=os.getenv("OPENAI_API_KEY"),
+                )
+logging.info(f"LLM: {llm.name}")
 
 # Upload PDF file
 uploaded_file = st.file_uploader("Lade deine PDF-Datei hier hoch:", type="pdf")
