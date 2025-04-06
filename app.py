@@ -74,6 +74,12 @@ model_temperature = st.select_slider(
 st.write("Temperatur des Sprachmodells:", model_temperature)
 logging.info(f"LLM model temperature: {model_temperature}")
 
+# Adding a stop button
+if st.button("Chatbot stoppen"):
+    st.write("Der Chatbot wurde gestoppt.")
+    st.stop()
+    logging.info("Chatbot stopped by user.")
+
 # Initialize LLM
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", 
                  temperature=model_temperature,
