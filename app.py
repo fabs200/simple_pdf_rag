@@ -1,4 +1,5 @@
 import os
+import time
 import streamlit as st
 from langchain_community.chat_models import ChatOpenAI
 from langchain_huggingface import HuggingFaceEndpointEmbeddings 
@@ -79,6 +80,10 @@ if st.button("Chatbot stoppen"):
     st.write("Der Chatbot wurde gestoppt.")
     st.stop()
     logging.info("Chatbot stopped by user.")
+    time.sleep(1)
+    st.write("App wird gestoppt.")
+    time.sleep(1)
+    os._exit(0)
 
 # Initialize LLM
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", 
